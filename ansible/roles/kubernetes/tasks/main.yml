@@ -1,0 +1,66 @@
+---
+- name: Install Kubernetes repository prerequisites
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+    state: present
+    update_cache: true
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the official Kubernetes repository signing key
+  ansible.builtin.get_url:
+    url: "{{ kubernetes_repository }}Release.key"
+    dest: "{{ kubernetes_apt_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure the official Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by={{ kubernetes_apt_keyring }}] {{ kubernetes_repository }} /"
+    filename: kubernetes
+    state: present
+    update_cache: true
+
+- name: Install pinned Kubernetes packages
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ kubernetes_package_version }}"
+      - "kubeadm={{ kubernetes_package_version }}"
+      - "kubectl={{ kubernetes_package_version }}"
+    state: present
+    allow_downgrade: true
+
+- name: Hold Kubernetes packages at the selected version
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Configure kubelet to use the node's host-only address
+  ansible.builtin.copy:
+    dest: /etc/default/kubelet
+    content: 'KUBELET_EXTRA_ARGS=--node-ip={{ node_ip }}'
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart kubelet
+
+- name: Ensure kubelet is enabled and running
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+    state: started

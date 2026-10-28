@@ -1,0 +1,33 @@
+---
+- name: Configure the control plane and prepare worker access
+  hosts: local
+  become: true
+  gather_facts: true
+  vars:
+    node_ip: "{{ control_plane_ip }}"
+  pre_tasks:
+    - name: Add the worker to the in-memory inventory
+      ansible.builtin.add_host:
+        name: worker
+        groups: kubernetes_workers
+        ansible_host: "{{ worker_ip }}"
+        ansible_user: vagrant
+        ansible_ssh_private_key_file: /home/vagrant/.ssh/worker_vagrant_key
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new"
+      changed_when: false
+  roles:
+    - node_prerequisites
+    - containerd
+    - kubernetes
+    - control_plane
+- name: Configure and join the worker
+  hosts: kubernetes_workers
+  become: true
+  gather_facts: true
+  vars:
+    node_ip: "{{ worker_ip }}"
+  roles:
+    - node_prerequisites
+    - containerd
+    - kubernetes
+    - worker

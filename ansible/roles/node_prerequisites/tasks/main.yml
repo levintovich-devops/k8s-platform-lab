@@ -1,0 +1,54 @@
+---
+- name: Disable active swap
+  ansible.builtin.command:
+    argv:
+      - swapoff
+      - --all
+  when: ansible_swaptotal_mb | default(0) | int > 0
+  changed_when: true
+
+- name: Disable swap persistently in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s+swap\s+.*)$'
+    replace: '# \1'
+
+- name: Configure required kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/kubernetes.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Load required kernel modules
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - "{{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+  changed_when: false
+
+- name: Configure Kubernetes networking sysctls
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctl settings
+
+- name: Apply Kubernetes sysctl settings
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - -p
+      - /etc/sysctl.d/99-kubernetes-cri.conf
+  changed_when: false

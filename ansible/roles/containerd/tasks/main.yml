@@ -1,0 +1,33 @@
+---
+- name: Install containerd
+  ansible.builtin.apt:
+    name: containerd
+    state: present
+    update_cache: true
+
+- name: Ensure containerd configuration directory exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate the default containerd configuration when absent
+  ansible.builtin.shell:
+    cmd: containerd config default > /etc/containerd/config.toml
+    creates: /etc/containerd/config.toml
+  notify: Restart containerd
+
+- name: Use the systemd cgroup driver
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+  notify: Restart containerd
+
+- name: Ensure containerd is enabled and running
+  ansible.builtin.systemd:
+    name: containerd
+    enabled: true
+    state: started

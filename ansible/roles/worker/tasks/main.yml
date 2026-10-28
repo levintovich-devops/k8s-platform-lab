@@ -1,0 +1,29 @@
+---
+- name: Wait for the worker's SSH connection to become available
+  ansible.builtin.wait_for_connection:
+    timeout: 300
+
+- name: Wait for the control-plane API to accept connections
+  ansible.builtin.wait_for:
+    host: "{{ control_plane_ip }}"
+    port: 6443
+    state: started
+    timeout: 600
+
+- name: Check whether this worker has already joined
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: worker_kubelet_config
+
+- name: Join the worker to the cluster
+  ansible.builtin.command:
+    argv: "{{ hostvars['localhost']['worker_join_command'].stdout.split() + ['--node-name', inventory_hostname] }}"
+  when: not worker_kubelet_config.stat.exists
+  register: worker_join
+  no_log: true
+
+- name: Ensure kubelet is enabled and running after joining
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+    state: started
