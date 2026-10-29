@@ -1,0 +1,53 @@
+﻿---
+- name: Install Calico Custom Resource Definitions
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - --server-side
+      - -f
+      - "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/operator-crds.yaml"
+  register: calico_crds_install
+  changed_when: "'created' in calico_crds_install.stdout or 'configured' in calico_crds_install.stdout"
+- name: Install Tigera Operator and Calico CRDs
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - --server-side
+      - -f
+      - "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml"
+  register: tigera_operator_install
+  changed_when: "'configured' in tigera_operator_install.stdout or 'created' in tigera_operator_install.stdout"
+  
+- name: Wait for Calico Installation CRD to become available
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - wait
+      - --for=condition=Established
+      - --timeout=180s
+      - crd/installations.operator.tigera.io
+  changed_when: false
+  
+- name: Render Calico Installation custom resource
+  ansible.builtin.template:
+    src: installation.yaml.j2
+    dest: /tmp/calico-installation.yaml
+    mode: "0644"
+    
+- name: Apply Calico Installation custom resource
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - apply
+      - -f
+      - /tmp/calico-installation.yaml
+  register: calico_installation_apply
+  changed_when: "'created' in calico_installation_apply.stdout or 'configured' in calico_installation_apply.stdout"
+
+

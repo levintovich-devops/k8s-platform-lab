@@ -20,6 +20,7 @@
     - containerd
     - kubernetes
     - control_plane
+    - cni_calico
 - name: Configure and join the worker
   hosts: kubernetes_workers
   become: true

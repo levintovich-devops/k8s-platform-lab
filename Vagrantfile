@@ -23,10 +23,12 @@ end
 raise "CONTROL_PLANE_IP and WORKER_IP must be different" if control_plane_address == worker_address
 
 control_plane_cpus = positive_integer_env("CONTROL_PLANE_CPUS", 2)
-control_plane_memory = positive_integer_env("CONTROL_PLANE_MEMORY_MB", 4096)
+control_plane_memory = positive_integer_env("CONTROL_PLANE_MEMORY_MB", 3072)
 worker_cpus = positive_integer_env("WORKER_CPUS", 2)
-worker_memory = positive_integer_env("WORKER_MEMORY_MB", 4096)
+worker_memory = positive_integer_env("WORKER_MEMORY_MB", 2048)
 pod_cidr = ENV.fetch("POD_CIDR", "10.244.0.0/16")
+cni_plugin = ENV.fetch("CNI_PLUGIN", "calico")
+raise "Unsupported CNI_PLUGIN: #{cni_plugin}" unless %w[calico cilium].include?(cni_plugin)
 
 Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/jammy64"
@@ -64,7 +66,8 @@ Vagrant.configure("2") do |config|
       ansible.extra_vars = {
         control_plane_ip: control_plane_ip,
         worker_ip: worker_ip,
-        kubernetes_pod_cidr: pod_cidr
+        kubernetes_pod_cidr: pod_cidr,
+		cni_plugin: cni_plugin
       }
     end
   end

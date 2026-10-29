@@ -5,3 +5,4 @@ kubernetes_package_version: "1.35.0-1.1"
 kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes-apt-keyring.asc
 kubernetes_repository: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/"
 kubernetes_pod_cidr: "10.244.0.0/16"
+calico_version: "v3.31.0"
