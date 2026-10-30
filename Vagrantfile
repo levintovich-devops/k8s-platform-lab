@@ -40,6 +40,7 @@ Vagrant.configure("2") do |config|
     worker.vm.provider "virtualbox" do |virtualbox|
       virtualbox.cpus = worker_cpus
       virtualbox.memory = worker_memory
+	  virtualbox.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
     end
   end
 
@@ -49,6 +50,7 @@ Vagrant.configure("2") do |config|
     control_plane.vm.provider "virtualbox" do |virtualbox|
       virtualbox.cpus = control_plane_cpus
       virtualbox.memory = control_plane_memory
+	  virtualbox.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
     end
     control_plane.vm.provision "file",
       source: ".vagrant/machines/worker/virtualbox/private_key",
