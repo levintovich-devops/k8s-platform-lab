@@ -1,8 +1,7 @@
 FROM golang:1.23-alpine AS build
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod main.go ./
 RUN go mod tidy
-COPY main.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/shopping-list .
 
 FROM alpine:3.21
