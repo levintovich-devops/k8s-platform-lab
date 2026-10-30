@@ -1,0 +1,48 @@
+
+@Library('platform-shared-library') _
+
+pipeline {
+    agent { label 'docker' }
+
+    environment {
+        IMAGE_NAME = 'levintovich/shopping-list-backend'
+        IMAGE_TAG  = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh '''
+                    docker build \
+                        -f apps/shopping-list/backend/Dockerfile \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        apps/shopping-list/backend
+                '''
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login \
+                            -u "$DOCKER_USER" --password-stdin
+
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker logout
+                    '''
+                }
+            }
+        }
+    }
+}
