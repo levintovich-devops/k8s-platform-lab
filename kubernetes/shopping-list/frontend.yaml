@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: shopping-list-frontend:local
-          imagePullPolicy: Never
+          image: levintovich/shopping-list-frontend:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 80

@@ -1,0 +1,88 @@
+etcd:
+Controlled By:  Node/control-plane
+curl http://127.0.0.1:2381/livez
+curl http://127.0.0.1:2381/readyz
+
+kube-apiserver:
+Controlled By:  Node/control-plane
+curl -k https://192.168.56.10:6443/livez 
+curl -k https://192.168.56.10:6443/readyz
+
+kube-controller-manager:
+Controlled By:  Node/control-plane
+curl -k https://127.0.0.1:10257/healthz 
+
+kube-proxy-hd6rv 192.168.56.10
+Controlled By:  DaemonSet/kube-proxy
+hostNetwork: true
+
+ kube-scheduler-control-plane:
+  10259/TCP (probe-port)
+curl -k https://127.0.0.1:10259/livez 
+curl -k https://127.0.0.1:10259/readyz
+
+coredns-7d764666f9-wlqkk:
+Controlled By:        ReplicaSet/coredns-7d764666f9
+ Ports:       53/UDP (dns), 53/TCP (dns-tcp), 9153/TCP (metrics), 
+ 8080/TCP (liveness-probe), 8181/TCP (readiness-probe)
+ 
+Liveness:     curl http://:8080/health  curl  http://10.244.171.66:8080/health
+Readiness:    curl http://:8181/ready    curl  http://10.244.171.66:8181/ready
+Metrics:  curl  http://10.244.171.66:9153/metrics
+--------------------------------------------------
+Namespace kube-system
+--------------------------------------
+kubectl get pods -n kube-system -o wide | grep worker
+coredns-7d764666f9-wlqkk                1/1     Running   0          22h   10.244.171.66   worker          <none>           <none>
+coredns-7d764666f9-x8zhd                1/1     Running   0          22h   10.244.171.67   worker          <none>           <none>
+kube-proxy-dt6st                        1/1     Running   0          22h   192.168.56.11   worker          <none>           <none>
+
+kubectl get svc -n kube-system
+NAME       TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
+kube-dns   ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   22h
+
+curl http://10.96.0.10:9153/metrics
+
+--------------------------------------------------
+Namespace tigera-operator
+--------------------------------------
+kubectl get pod  -n tigera-operator -o wide
+NAME                               READY   STATUS    RESTARTS   AGE   IP              NODE     NOMINATED NODE   READINESS GATES
+tigera-operator-758cb79bc7-tg2x8   1/1     Running   0          74m   192.168.56.11   worker   <none>           <none>
+
+ kubectl get pod  -n tigera-operator -o yaml | grep host
+    hostNetwork: true
+	
+--------------------------------------------------
+Namespace calico-system
+--------------------------------------
+ kubectl get pods -n calico-system -o wide | grep "192.168"
+calico-node-2wdwh                          1/1     Running   0          147m   192.168.56.11    worker          <none>           <none>
+calico-node-pc8gn                          1/1     Running   0          147m   192.168.56.10    control-plane   <none>           <none>
+calico-typha-8f586f87-ff6jw                1/1     Running   0          147m   192.168.56.11    worker          <none>
+
+ kind: DaemonSet
+    name: calico-node
+ httpGet:
+        host: localhost
+        path: /liveness
+        port: 9099
+        scheme: HTTP
+curl http://127.0.0.1:9099/liveness
++---------------------------+---------+----------------+-----------------+--------+
+|         COMPONENT         | TIMEOUT |    LIVENESS    |    READINESS    | DETAIL |
++---------------------------+---------+----------------+-----------------+--------+
+| CalculationGraph          | 30s     | reporting live | reporting ready |        |
+| FelixStartup              | -       | reporting live | reporting ready |        |
+| InternalDataplaneMainLoop | 1m30s   | reporting live | reporting ready |        |
++---------------------------+---------+----------------+-----------------+--------+
+
+Pod  calico-typha-8f586f87-ff6jw:
+worker/192.168.56.11
+curl http://localhost:9098/liveness 
+curl http://localhost:9098/readiness 
+
+Pod csi-node-driver-j65lz:
+daemonset.apps/csi-node-driver
+
+Pod calico-kube-controllers-746ddc9f6b-rnc67:

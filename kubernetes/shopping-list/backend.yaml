@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: api
-          image: shopping-list-backend:local
-          imagePullPolicy: Never
+          image: levintovich/shopping-list-backend:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
