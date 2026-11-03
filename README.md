@@ -1,6 +1,11 @@
-# Kubernetes Platform Lab — Phase 1
+# Kubernetes Platform Lab
 
-Phase 1 creates a reproducible, two-node Kubernetes cluster on a Windows host using VirtualBox and Vagrant. Windows requires only those two tools. The control-plane VM runs Ansible and hosts the Kubernetes control plane; the worker VM runs Kubernetes components only. The cluster intentionally has **no CNI installed**; networking will be added in Phase 2.
+A reproducible two-node Kubernetes lab on Windows with Vagrant, VirtualBox, Ansible, and kubeadm. The Shopping List application provides a real workload for testing ingress, network policy, and cross-node traffic.
+
+- **Cluster provisioning:** Ansible configures containerd and bootstraps the control plane and worker. Select Calico or Cilium with `CNI_PLUGIN`.
+- **Application access:** MetalLB and Ingress NGINX expose Shopping List and Hubble UI in the Cilium lab. A request from Windows to `shopping.lab/api/items` returned the shopping list.
+- **Network policy troubleshooting:** An HTTP 504 led to an NGINX upstream connection timeout. Hubble showed Cilium dropping the controller's TCP SYN to the frontend with `Policy denied`. A targeted NetworkPolicy allowed TCP/80 from the controller and restored access.
+- **Cross-node networking:** Hubble identified the communicating pods. A packet capture on the VM interface showed the ICMP requests and replies encapsulated in VXLAN over UDP/8472.
 
 ## Architecture
 
@@ -11,27 +16,18 @@ Phase 1 creates a reproducible, two-node Kubernetes cluster on a Windows host us
 - Ansible configures the control plane locally and configures the worker over SSH using its Vagrant `vagrant` account, host-only IP, and Vagrant-managed private key. SSH host key checking remains enabled; only the worker's first-seen key is accepted with OpenSSH `accept-new`.
 - The control-plane play generates a fresh kubeadm join command in Ansible memory. The worker play uses that registered value to join; the command is neither written to the project folder nor printed in task output. The control-plane play copies a host-accessible kubeconfig into `.vagrant`.
 - Kubernetes packages are installed from the official `pkgs.k8s.io` repository and held at the exact version in `ansible/group_vars/all.yml`.
-- The default Pod CIDR is `10.244.0.0/16`. It is reserved in kubeadm configuration; no CNI implementation is installed in this phase.
+- The default Pod CIDR is `10.244.0.0/16`. It is configured during bootstrap.
 
-## Directory structure
+## Repository layout
 
-```text
-.
-├── Vagrantfile
-├── README.md
-└── ansible
-    ├── ansible.cfg
-    ├── inventory.ini
-    ├── site.yml
-    ├── group_vars
-    │   └── all.yml
-    └── roles
-        ├── containerd
-        ├── control_plane
-        ├── kubernetes
-        ├── node_prerequisites
-        └── worker
-```
+| Path | Contents |
+|---|---|
+| `Vagrantfile`, `ansible/` | VM provisioning, Kubernetes bootstrap, and Calico and Cilium roles |
+| [`apps/shopping-list/`](apps/shopping-list/) | Shopping List source code |
+| [`kubernetes/shopping-list/`](kubernetes/shopping-list/) | Workload manifests, services, storage, and NetworkPolicies |
+| [`kubernetes/metallb/`](kubernetes/metallb/) | MetalLB manifests and lab IP pool |
+| [`kubernetes/ingress-nginx/`](kubernetes/ingress-nginx/) | Ingress controller configuration and routes for Shopping List and Hubble UI |
+| `labs/` | Networking experiments |
 
 ## Prerequisites
 
@@ -58,11 +54,14 @@ Set optional environment variables in PowerShell before running Vagrant:
 | `CONTROL_PLANE_MEMORY_MB` | `4096` | Control-plane RAM in MB |
 | `WORKER_CPUS` | `2` | Worker vCPUs |
 | `WORKER_MEMORY_MB` | `4096` | Worker RAM in MB |
+| `CNI_PLUGIN` | `calico` | CNI installed by Ansible: `calico` or `cilium` |
 | `POD_CIDR` | `10.244.0.0/16` | Cluster Pod CIDR passed to kubeadm |
 
 Confirm the chosen host-only addresses belong to a VirtualBox host-only network and are not in use. Vagrant supplies the NAT interfaces automatically.
 
 ## Start and stop
+
+For a fresh Cilium lab, set `$env:CNI_PLUGIN = "cilium"` in PowerShell before running `vagrant up`. Choose the CNI at bootstrap. An existing cluster requires a separate migration procedure to switch CNIs.
 
 Run these commands from PowerShell in the repository directory:
 
@@ -107,9 +106,11 @@ vagrant ssh control-plane -c "kubectl get nodes -o wide"
 vagrant ssh control-plane -c "kubectl get pods -A"
 ```
 
-## Expected state before CNI
+## Application and ingress
 
-Both nodes should be registered in the API, but can remain `NotReady` because no Pod network plugin has been installed. CoreDNS pods will typically remain `Pending`. This is expected for Phase 1; do not install a CNI as part of this phase.
+Deploy the application using the [Shopping List instructions](kubernetes/shopping-list/README.md). The lab also provides [MetalLB](kubernetes/metallb/) and [Ingress NGINX](kubernetes/ingress-nginx/) manifests. Apply the MetalLB IP pool after its CRDs are available. The Ingress Kustomization includes the Hubble route. Apply `shopping-ingress.yaml` and the [controller-to-frontend policy](kubernetes/shopping-list/network-policies/allow-ingress-nginx-to-frontend.yaml) separately.
+
+For the verified Windows setup, map `hubble.lab` and `shopping.lab` to `192.168.56.20` in the Windows hosts file. Test the API with `curl.exe -i http://shopping.lab/api/items`.
 
 ## Troubleshooting and recovery
 
@@ -121,6 +122,6 @@ Both nodes should be registered in the API, but can remain `NotReady` because no
 - **Recreating a worker later:** run `vagrant up worker`, then `vagrant provision control-plane` so Vagrant refreshes the copied worker key and Ansible generates a fresh join token. If the worker was recreated with a new SSH host key, remove the old worker IP entry from `/home/vagrant/.ssh/known_hosts` on the control-plane VM before provisioning; host key checking intentionally remains enabled.
 - **Host kubeconfig is stale or unavailable:** re-run `vagrant provision control-plane` to copy the current admin configuration into the shared `.vagrant` directory. The file grants cluster-admin access; keep it private and do not commit it.
 
-## Scope
+## Roadmap
 
-This phase does not install a CNI, ingress controller, Helm, Terraform/Terragrunt, Argo CD, monitoring, applications, or CI/CD.
+Add a standalone Terraform networking example and a short-lived AWS EKS lab managed with Terragrunt.
