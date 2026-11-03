@@ -20,7 +20,10 @@
     - containerd
     - kubernetes
     - control_plane
-    - cni_calico
+    - role: cni_calico
+      when: cni_plugin == "calico"
+    - role: cni_cilium
+      when: cni_plugin == "cilium"
 - name: Configure and join the worker
   hosts: kubernetes_workers
   become: true

@@ -6,3 +6,5 @@ kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes-apt-keyring.asc
 kubernetes_repository: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/"
 kubernetes_pod_cidr: "10.244.0.0/16"
 calico_version: "v3.31.0"
+cilium_version: "1.20.4"
+cilium_cli_version: "v0.20.1"

@@ -1,0 +1,58 @@
+---
+- name: Download Cilium CLI
+  ansible.builtin.get_url:
+    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/cilium-linux-amd64.tar.gz"
+    dest: /tmp/cilium-linux-amd64.tar.gz
+    mode: "0644"
+
+- name: Install Cilium CLI
+  ansible.builtin.unarchive:
+    src: /tmp/cilium-linux-amd64.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    creates: /usr/local/bin/cilium
+
+- name: Check whether Cilium is installed
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - daemonset
+      - cilium
+      - -n
+      - kube-system
+  register: cilium_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Cilium
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/cilium
+      - install
+      - --version
+      - "{{ cilium_version }}"
+      - --set
+      - "ipam.mode=kubernetes"
+      - --set
+      - "routingMode=tunnel"
+      - --set
+      - "tunnelProtocol=vxlan"
+      - --set
+      - "kubeProxyReplacement=false"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: cilium_installed.rc != 0
+
+- name: Wait for Cilium readiness
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/cilium
+      - status
+      - --wait
+      - --wait-duration
+      - 5m
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
