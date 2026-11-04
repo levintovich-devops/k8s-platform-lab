@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+repo_root = File.expand_path("../../..", __dir__)
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.box_version = "20241002.0.0"
+
+  config.vm.define "platform-tools" do |machine|
+    machine.vm.hostname = "platform-tools"
+    machine.vm.provision "shell", path: "provision.sh"
+    machine.vm.synced_folder ".", "/vagrant", disabled: true
+    machine.vm.synced_folder repo_root, "/workspace/k8s-platform-lab"
+
+    machine.vm.provider "virtualbox" do |virtualbox|
+      virtualbox.cpus = 2
+      virtualbox.memory = 2048
+    end
+  end
+end
