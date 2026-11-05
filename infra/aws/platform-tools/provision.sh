@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Configure guest timezone
+timedatectl set-timezone Asia/Jerusalem
+
+# Configure DNS for VirtualBox NAT
+dns_source="/workspace/k8s-platform-lab/configs/netplan/99-dns.yaml"
+dns_target="/etc/netplan/99-dns.yaml"
+
+if [[ -f "$dns_source" ]]; then
+  install -m 600 "$dns_source" "$dns_target"
+  netplan generate
+  netplan apply
+fi
+
 terraform_version="1.13.5"
 aws_cli_version="2.36.0"
 
