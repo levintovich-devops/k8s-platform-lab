@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Required by AWS SSO bootstrap
+apt-get update
+apt-get install -y jq
+
 # Configure guest timezone
 timedatectl set-timezone Asia/Jerusalem
+
+# Enable NTP synchronization
+timedatectl set-ntp true
+systemctl restart systemd-timesyncd
 
 # Configure DNS for VirtualBox NAT
 dns_source="/workspace/k8s-platform-lab/configs/netplan/99-dns.yaml"

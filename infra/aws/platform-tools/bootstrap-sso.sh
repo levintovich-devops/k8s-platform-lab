@@ -182,6 +182,13 @@ aws configure set region "$REGION" \
 aws configure set output json \
   --profile "$PROFILE"
 
+# Configure default profile using the same SSO identity.
+aws configure set sso_session "$SSO_SESSION" --profile default
+aws configure set sso_account_id "$ACCOUNT_ID" --profile default
+aws configure set sso_role_name "$ROLE" --profile default
+aws configure set region "$REGION" --profile default
+aws configure set output json --profile default
+
 echo
 echo "Verifying AWS access..."
 
