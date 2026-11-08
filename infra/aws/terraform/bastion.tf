@@ -24,6 +24,8 @@ resource "aws_instance" "bastion" {
   ]
 
   iam_instance_profile = aws_iam_instance_profile.bastion.name
+  
+  user_data = file("${path.module}/cloud-init.yaml")
 
   tags = {
     Name = "${var.vpc_name}-bastion"
