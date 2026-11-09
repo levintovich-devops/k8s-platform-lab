@@ -4,3 +4,7 @@
 
 # Terraform local working directories
 **/.terraform/
+
+# Terraform state and backups
+*.tfstate
+*.tfstate.*
