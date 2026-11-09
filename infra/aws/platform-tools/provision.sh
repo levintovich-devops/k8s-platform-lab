@@ -24,6 +24,7 @@ fi
 
 terraform_version="1.13.5"
 aws_cli_version="2.36.0"
+terragrunt_version="0.99.4"
 
 terraform_is_pinned() {
   command -v terraform >/dev/null &&
@@ -69,7 +70,21 @@ if ! aws_cli_is_pinned; then
   hash -r
 fi
 
+# Install Terragrunt
+if ! command -v terragrunt >/dev/null ||
+   [[ "$(terragrunt --version)" != "terragrunt version v${terragrunt_version}" ]]; then
+
+  curl -fsSL \
+    "https://github.com/gruntwork-io/terragrunt/releases/download/v${terragrunt_version}/terragrunt_linux_amd64" \
+    -o /tmp/terragrunt
+
+  install -m 755 /tmp/terragrunt /usr/local/bin/terragrunt
+  rm -f /tmp/terragrunt
+fi
+
 terraform version
 aws --version
 terraform_is_pinned
 aws_cli_is_pinned
+terragrunt --version
+
