@@ -1,9 +1,13 @@
+
 .vagrant/
 *.retry
 .local/
 
 # Terraform local working directories
 **/.terraform/
+
+# Terragrunt cache
+**/.terragrunt-cache/
 
 # Terraform state and backups
 *.tfstate
