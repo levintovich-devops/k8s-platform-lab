@@ -1,0 +1,62 @@
+#cloud-config
+
+apt:
+  sources_list: |
+    Types: deb
+    URIs: https://eu-north-1.ec2.archive.ubuntu.com/ubuntu/
+    Suites: noble noble-updates noble-backports
+    Components: main universe restricted multiverse
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+    Types: deb
+    URIs: https://security.ubuntu.com/ubuntu
+    Suites: noble-security
+    Components: main universe restricted multiverse
+    Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - unzip
+  - ca-certificates
+
+write_files:
+  - path: /usr/local/sbin/bootstrap-bastion.sh
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -Eeuo pipefail
+
+      exec > >(tee -a /var/log/bastion-bootstrap.log) 2>&1
+      trap 'status=$?; echo "Bootstrap failed at line ${LINENO} (exit ${status})."; exit "${status}"' ERR
+
+      echo "Installing AWS CLI v2..."
+      curl --fail --location --show-error --silent --retry 5 --retry-all-errors --retry-delay 2 \
+        https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip \
+        --output /tmp/awscliv2.zip
+      unzip -q /tmp/awscliv2.zip -d /tmp
+      /tmp/aws/install
+      aws --version
+
+      echo "Installing kubectl..."
+      curl --fail --location --show-error --silent --retry 5 --retry-all-errors --retry-delay 2 \
+        https://dl.k8s.io/release/v1.35.0/bin/linux/amd64/kubectl \
+        --output /usr/local/bin/kubectl
+      chmod 755 /usr/local/bin/kubectl
+      kubectl version --client
+
+      echo "Installing Helm..."
+      curl --fail --location --show-error --silent --retry 5 --retry-all-errors --retry-delay 2 \
+        https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz \
+        --output /tmp/helm.tar.gz
+      tar -xzf /tmp/helm.tar.gz -C /tmp
+      install -m 755 /tmp/linux-amd64/helm /usr/local/bin/helm
+      helm version --short
+
+      echo "Bastion bootstrap completed successfully."
+
+runcmd:
+  - [bash, -e, /usr/local/sbin/bootstrap-bastion.sh]

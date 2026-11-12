@@ -26,6 +26,10 @@ remote_state {
   }
 }
 
+dependencies {
+  paths = ["../nat"]
+}
+
 inputs = {
   aws_region                               = local.aws_region
   existing_vpc_name                        = local.existing_vpc_name

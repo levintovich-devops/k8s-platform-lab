@@ -15,7 +15,8 @@ infra/aws/
 │   ├── Vagrantfile
 │   ├── provision.sh
 │   └── bootstrap-sso.sh
-└── terraform/
+├── terraform/             # Permanent VPC infrastructure
+└── terragrunt/            # Temporary Bastion, NAT, and EKS components
 ```
 
 The VM mounts the project repository at:
@@ -168,7 +169,27 @@ sso_registration_scopes = sso:account:access
 
 The AWS configuration and SSO token cache must remain outside Git.
 
-## 8. Troubleshooting
+## 8. AWS Infrastructure Lifecycle
+
+The Terraform configuration in `terraform/` exclusively owns the permanent
+VPC, subnets, route tables, and Internet Gateway. Do not include it in
+temporary-infrastructure destroy operations.
+
+Terragrunt in `terragrunt/` manages temporary Bastion, NAT, and EKS resources
+in separate states. From that directory, review and operate the complete
+temporary lifecycle with:
+
+```bash
+terragrunt run --all plan
+terragrunt run --all apply
+terragrunt run --all destroy
+```
+
+EKS depends on NAT for apply/destroy ordering; Bastion remains independent.
+Before the first plan, follow the state-inspection and one-time Bastion
+migration instructions in [`terragrunt/README.md`](./terragrunt/README.md).
+
+## 9. Troubleshooting
 
 ### NoRegion
 
@@ -240,7 +261,7 @@ Bash scripts must use Unix LF line endings.
 
 The repository's `.gitattributes` enforces LF for `*.sh` files.
 
-## 9. Rebuild and Validation
+## 10. Rebuild and Validation
 
 To test the environment from a clean state, run these commands from the `platform-tools` directory in Windows PowerShell:
 
@@ -266,7 +287,7 @@ timedatectl status
 
 The expected outcome is a reproducible environment with automatic tool installation, functional AWS SSO authentication and AWS CLI access without explicit profile or region arguments.
 
-## 10. Security
+## 11. Security
 
 - Use AWS IAM Identity Center for authentication.
 - Do not commit AWS access tokens, credentials or local AWS configuration files.

@@ -18,7 +18,7 @@ their Terraform configuration or state.
 - Managed Node Groups: 1
 - Worker Nodes: 2 x t3.small, On-Demand
 - Node scaling: min=2, desired=2, max=2
-- Public subnet: existing Bastion only
+- Public subnet: existing Bastion component and NAT Gateway
 
 Both private subnets are supplied to the EKS control plane and
 Managed Node Group.
@@ -38,19 +38,18 @@ This deployment does not create or modify:
 
 - VPCs or subnets
 - Route tables or Internet Gateways
-- NAT Gateways
-- Existing Bastion
-- Existing Terraform state
+- NAT Gateway resources (managed by the separate `nat` component)
+- Bastion resources (managed by the separate `bastion` component)
+- The permanent VPC Terraform state
 
 EKS-specific IAM roles, security groups, cluster resources,
 and managed worker nodes are created by the EKS module.
 
 ## Private networking prerequisites
 
-The existing private route table has no NAT route.
-
-Before deployment, verify that private worker nodes can reach
-the AWS services required for bootstrap and image pulls.
+The `nat` Terragrunt component installs a default route on the existing shared
+private route table. The EKS Terragrunt unit depends on NAT so `run --all apply`
+creates the route and gateway before EKS.
 
 Potential requirements include:
 
@@ -65,10 +64,7 @@ from the worker nodes and the administration host.
 
 Verify DNS, security groups, endpoint policies, and routes.
 
-The current EKS configuration does not provision NAT Gateways
-or VPC endpoints.
-
-Do not deploy until the required connectivity is confirmed.
+Do not deploy until the NAT route and required connectivity are confirmed.
 
 ## Terraform and Terragrunt
 
@@ -122,19 +118,21 @@ lock mechanism. Plan does not intentionally deploy resources.
 
 ## Deployment
 
-Only after networking prerequisites and the plan are approved:
+From `infra/aws/terragrunt`, after the networking prerequisites and complete
+all-components plan are approved:
 
 ```bash
-terragrunt apply
+terragrunt run --all apply
 ```
 
 ## Kubernetes access
 
 The Kubernetes API endpoint is private-only.
 
-Run the following commands from an administration host with
-network connectivity to the private endpoint and appropriate
-AWS IAM/EKS permissions:
+Run the following commands from an administration host with network
+connectivity to the private endpoint and appropriate AWS IAM/EKS permissions.
+The SSM-managed Bastion is a separate Terragrunt component and is not an EKS
+dependency.
 
 ```bash
 aws eks update-kubeconfig \
@@ -152,7 +150,7 @@ Delete workloads that provision AWS infrastructure before
 destroying the EKS cluster.
 
 ```bash
-terragrunt destroy
+terragrunt run --all destroy
 ```
 
 Review the destroy plan.
@@ -160,8 +158,9 @@ Review the destroy plan.
 Verify that the EKS cluster, Managed Node Group, EC2 worker
 instances, and associated EBS volumes have been removed.
 
-Do not delete the existing VPC, Bastion, S3 state bucket,
-or shared Terraform infrastructure.
+The all-components destroy removes EKS before NAT and also removes the Bastion
+component. It never includes the permanent VPC. Do not delete the S3 state
+bucket or shared Terraform infrastructure.
 
 ## Cost management
 
@@ -174,9 +173,8 @@ Additional costs include:
 - Data transfer and optional workload resources
 - Any separately provisioned networking endpoints
 
-No NAT Gateway, load balancer, customer-managed KMS key,
-or control-plane CloudWatch log group is provisioned by
-this configuration.
+The separate NAT component incurs additional costs for the NAT Gateway,
+Elastic IP, and processed data. No load balancer, customer-managed KMS key, or
+control-plane CloudWatch log group is provisioned by the EKS component.
 
 Destroy the temporary EKS deployment promptly after testing.
-```

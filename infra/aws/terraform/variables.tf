@@ -52,28 +52,3 @@ variable "public_route_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
-
-
-variable "ubuntu_ami_owner" {
-  description = "AWS account ID of the official Ubuntu AMI publisher."
-  type        = string
-  default     = "099720109477"
-}
-
-variable "ubuntu_ami_name_pattern" {
-  description = "Name pattern for Ubuntu Server AMI."
-  type        = string
-  default     = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
-}
-
-variable "ubuntu_ami_virtualization_type" {
-  description = "Virtualization type for the Ubuntu AMI."
-  type        = string
-  default     = "hvm"
-}
-
-variable "bastion_instance_type" {
-  description = "EC2 instance type for the Bastion host."
-  type        = string
-  default     = "t3.micro"
-}
