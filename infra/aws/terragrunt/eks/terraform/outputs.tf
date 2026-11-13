@@ -29,7 +29,7 @@ output "cluster_oidc_issuer_url" {
 }
 
 output "cluster_security_group_id" {
-  description = "Primary security group ID created for the EKS cluster."
+  description = "AWS-managed primary EKS security group attached to control-plane ENIs."
   value       = module.eks.cluster_primary_security_group_id
 }
 

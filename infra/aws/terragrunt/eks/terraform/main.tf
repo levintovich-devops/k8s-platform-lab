@@ -29,33 +29,18 @@ module "eks" {
   endpoint_public_access       = false
 
   enable_cluster_creator_admin_permissions = true
+  authentication_mode = "API_AND_CONFIG_MAP"
+
+  addons = {
+    vpc-cni = {
+      before_compute = true
+    }
+  }
+
   create_kms_key                           = false
   encryption_config                        = null
   create_cloudwatch_log_group              = false
   enabled_log_types                        = []
-
-  eks_managed_node_groups = {
-    lab = {
-      name           = "${var.cluster_name}-nodes"
-      subnet_ids = [
-        data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
-        data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
-      ]
-      instance_types = [var.node_instance_type]
-      capacity_type  = "ON_DEMAND"
-
-      min_size     = var.node_group_size.min_size
-      max_size     = var.node_group_size.max_size
-      desired_size = var.node_group_size.desired_size
-
-      network_interfaces = [
-        {
-          device_index                = 0
-          associate_public_ip_address = false
-        }
-      ]
-    }
-  }
 
   tags = {
     Environment = "lab"

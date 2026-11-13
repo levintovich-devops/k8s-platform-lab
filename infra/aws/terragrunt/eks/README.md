@@ -1,8 +1,9 @@
 
 # AWS EKS lab
 
-This Terragrunt deployment creates a private EKS cluster with one
-EKS Managed Node Group containing two t3.small EC2 worker nodes.
+This Terragrunt deployment creates a private EKS control plane. The separate
+`eks-node-group` unit creates one Managed Node Group containing two t3.small
+EC2 worker nodes after `eks-access` is configured.
 
 It reuses the existing VPC and private subnets without modifying
 their Terraform configuration or state.
@@ -15,9 +16,7 @@ their Terraform configuration or state.
 - EKS cluster: aws-lab-eks
 - Kubernetes version: 1.35
 - EKS API endpoint: private only
-- Managed Node Groups: 1
-- Worker Nodes: 2 x t3.small, On-Demand
-- Node scaling: min=2, desired=2, max=2
+- EKS VPC CNI add-on: enabled before compute
 - Public subnet: existing Bastion component and NAT Gateway
 
 Both private subnets are supplied to the EKS control plane and
@@ -42,8 +41,9 @@ This deployment does not create or modify:
 - Bastion resources (managed by the separate `bastion` component)
 - The permanent VPC Terraform state
 
-EKS-specific IAM roles, security groups, cluster resources,
-and managed worker nodes are created by the EKS module.
+EKS-specific IAM roles, security groups, and cluster resources are created by
+the EKS module. The separate node-group unit owns worker nodes and their IAM
+role.
 
 ## Private networking prerequisites
 
@@ -87,17 +87,18 @@ These are separate Terraform states.
 ## Configuration
 
 Shared AWS region and state settings come from
-`infra/aws/terraform/backend-config.json`. EKS-specific deployment settings
-are supplied through `terragrunt.hcl`.
+`infra/aws/terraform/backend-config.json`. EKS-specific control-plane
+deployment settings are supplied through `terragrunt.hcl`. Node-group settings
+are supplied through `../eks-node-group/terragrunt.hcl`.
 
 Default values:
 
 - EKS_CLUSTER_NAME=aws-lab-eks
 - EKS_KUBERNETES_VERSION=1.35
-- EKS_NODE_INSTANCE_TYPE=t3.small
-- EKS_NODE_MIN_SIZE=2
-- EKS_NODE_MAX_SIZE=2
-- EKS_NODE_DESIRED_SIZE=2
+- EKS_NODE_INSTANCE_TYPE=t3.small (node-group unit)
+- EKS_NODE_MIN_SIZE=2 (node-group unit)
+- EKS_NODE_MAX_SIZE=2 (node-group unit)
+- EKS_NODE_DESIRED_SIZE=2 (node-group unit)
 
 Environment variables may override these defaults.
 
@@ -134,20 +135,22 @@ terragrunt run --all apply
 
 The Kubernetes API endpoint is private-only.
 
-Run the following commands from an administration host with network
-connectivity to the private endpoint and appropriate AWS IAM/EKS permissions.
-The SSM-managed Bastion is a separate Terragrunt component and is not an EKS
-dependency.
+Use the SSM-managed Bastion after deploying `eks-access`. Its EC2 instance
+profile provides AWS credentials; do not install static access keys.
 
 ```bash
-aws eks update-kubeconfig \
-  --region eu-north-1 \
-  --name aws-lab-eks
-
+aws sts get-caller-identity
+aws eks update-kubeconfig --region <configured-region> --name <configured-cluster-name>
+kubectl auth can-i '*' '*'
 kubectl get nodes -o wide
 ```
 
-Verify that both worker nodes are Ready.
+Use the configured values or the `update_kubeconfig_command` output from this
+unit; the placeholders above are not literal values.
+
+The administrator permission is cluster-scoped. The EKS endpoint remains
+private and is reachable from the Bastion through a TCP/443 security-group
+reference, not a CIDR-wide ingress rule.
 
 ## Destroy
 
@@ -163,8 +166,9 @@ Review the destroy plan.
 Verify that the EKS cluster, Managed Node Group, EC2 worker
 instances, and associated EBS volumes have been removed.
 
-The all-components destroy removes EKS before NAT and also removes the Bastion
-component. It never includes the permanent VPC. Do not delete the S3 state
+The all-components destroy removes node-group resources before EKS and NAT, and
+removes the Bastion after its access entry and policy association. It never
+includes the permanent VPC. Do not delete the S3 state
 bucket or shared Terraform infrastructure.
 
 ## Cost management

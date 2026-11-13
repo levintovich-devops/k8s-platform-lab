@@ -4,7 +4,9 @@ This Terragrunt root contains only temporary components:
 
 - `bastion`: SSM-managed EC2 instance and its IAM/security-group resources.
 - `nat`: NAT Gateway, Elastic IP, and private-subnet default route.
-- `eks`: private EKS cluster and managed node group.
+- `eks`: private EKS control plane.
+- `eks-access`: Bastion IAM, Kubernetes, and network access to the EKS API.
+- `eks-node-group`: EKS Managed Node Group and its node IAM role.
 
 The permanent VPC remains owned by Terraform in `../terraform`. It publishes
 the VPC, subnet, Internet Gateway, and route-table identifiers as Terraform
@@ -18,9 +20,12 @@ Terragrunt root read the same file.
 
 ## Dependency and state layout
 
-`eks` depends on `nat`, so apply creates networking before EKS and destroy
-removes EKS before NAT. `bastion` has no dependency on either component and can
-be managed independently. It uses the existing public subnet.
+`eks` depends on `nat`. `eks-access` depends on `bastion` and `eks`.
+`eks-node-group` depends on `nat`, `eks`, and `eks-access`. Apply therefore
+creates NAT and the independent Bastion before establishing access and then
+creating worker nodes. Destroy reverses this order: workers first, access next,
+and then the control plane, Bastion, and NAT. Bastion remains independently
+deployable and has no dependency on EKS or its node group.
 
 Each component has a separate S3 state:
 
@@ -30,11 +35,13 @@ Each component has a separate S3 state:
 | Bastion | `bastion/terraform.tfstate` |
 | NAT | `networking/nat/terraform.tfstate` |
 | EKS | `eks/terraform.tfstate` |
+| EKS access | `eks-access/terraform.tfstate` |
+| EKS node group | `eks-node-group/terraform.tfstate` |
 
 The VPC's output values must be published to its existing state before
 planning any temporary component. See the one-time setup below.
 
-The all-components commands below run only the three directories in this
+The all-components commands below run only the five directories in this
 Terragrunt root. The permanent Terraform directory is not a Terragrunt unit and
 is therefore excluded from every `run --all` command, especially destroy.
 
@@ -49,9 +56,33 @@ terragrunt run --all apply
 terragrunt run --all destroy
 ```
 
-The apply and destroy commands operate on Bastion, NAT, and EKS only. EKS is
-ordered after NAT for apply and before NAT for destroy; Bastion remains
-independently manageable. To operate Bastion by itself, run Terragrunt from
+### Existing EKS state migration
+
+The original EKS state may own the Managed Node Group as resources nested under
+`module.eks.module.eks_managed_node_group["lab"]`. Before using the new
+`eks-node-group` unit, inspect the existing EKS state and migrate every resource
+owned by that module, including the node group, launch template, node IAM role
+and policies, and any security-group resources, to the corresponding
+`module.eks_managed_node_group` addresses in the new state. Preserve each
+resource's state and identifiers; do not allow the old state to destroy the
+resources or the new state to create duplicates. If the EKS state does not own
+those resources, no node-group resource migration is needed.
+
+The existing remote EKS state could not be inspected because read access to
+its S3 state object was denied. The exact resource inventory and migration
+mapping therefore remain to be confirmed. Back up both remote states and
+serialize any required migration before applying. An all-unit plan does not
+change state, but may show the old node group planned for removal from EKS and
+creation in the new unit until ownership is moved. Do not apply that plan
+before resolving the ownership difference. The permanent VPC and its state
+are not part of this migration.
+
+The new node-group unit reads the EKS state outputs, and `eks-access` reads the
+EKS and Bastion outputs. Those upstream states must therefore contain their
+outputs before planning dependent units.
+
+The apply and destroy commands operate on Bastion, NAT, EKS, EKS access, and
+the EKS node group only. To operate Bastion by itself, run Terragrunt from
 `bastion/`.
 
 The private EKS API is not reachable from the public internet. Confirm that

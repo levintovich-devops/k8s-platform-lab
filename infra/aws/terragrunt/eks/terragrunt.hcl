@@ -8,10 +8,6 @@ locals {
   cluster_name          = get_env("EKS_CLUSTER_NAME", "aws-lab-eks")
   kubernetes_version    = get_env("EKS_KUBERNETES_VERSION", "1.35")
 
-  node_instance_type = get_env("EKS_NODE_INSTANCE_TYPE", "t3.small")
-  node_min_size      = tonumber(get_env("EKS_NODE_MIN_SIZE", "2"))
-  node_max_size      = tonumber(get_env("EKS_NODE_MAX_SIZE", "2"))
-  node_desired_size  = tonumber(get_env("EKS_NODE_DESIRED_SIZE", "2"))
 }
 
 terraform {
@@ -39,10 +35,4 @@ inputs = {
   vpc_state_key      = local.shared_backend_config.key
   cluster_name       = local.cluster_name
   kubernetes_version = local.kubernetes_version
-  node_instance_type = local.node_instance_type
-  node_group_size = {
-    min_size     = local.node_min_size
-    max_size     = local.node_max_size
-    desired_size = local.node_desired_size
-  }
 }
