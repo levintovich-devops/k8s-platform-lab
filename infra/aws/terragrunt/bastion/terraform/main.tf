@@ -1,19 +1,10 @@
-data "aws_vpc" "lab" {
-  filter {
-    name   = "tag:Name"
-    values = [var.existing_vpc_name]
-  }
-}
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
 
-data "aws_subnet" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.lab.id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["${var.existing_vpc_name}-public"]
+  config = {
+    bucket = var.vpc_state_bucket
+    key    = var.vpc_state_key
+    region = var.aws_region
   }
 }
 
@@ -44,7 +35,7 @@ data "aws_iam_policy_document" "bastion_assume_role" {
 }
 
 resource "aws_iam_role" "bastion" {
-  name               = "${var.existing_vpc_name}-bastion-role"
+  name               = "${data.terraform_remote_state.vpc.outputs.vpc_name}-bastion-role"
   assume_role_policy = data.aws_iam_policy_document.bastion_assume_role.json
 }
 
@@ -54,17 +45,17 @@ resource "aws_iam_role_policy_attachment" "bastion_ssm" {
 }
 
 resource "aws_iam_instance_profile" "bastion" {
-  name = "${var.existing_vpc_name}-bastion-profile"
+  name = "${data.terraform_remote_state.vpc.outputs.vpc_name}-bastion-profile"
   role = aws_iam_role.bastion.name
 }
 
 resource "aws_security_group" "bastion" {
-  name        = "${var.existing_vpc_name}-bastion-sg"
+  name        = "${data.terraform_remote_state.vpc.outputs.vpc_name}-bastion-sg"
   description = "Security group for SSM-managed Bastion"
-  vpc_id      = data.aws_vpc.lab.id
+  vpc_id      = data.terraform_remote_state.vpc.outputs.vpc_id
 
   tags = {
-    Name = "${var.existing_vpc_name}-bastion-sg"
+    Name = "${data.terraform_remote_state.vpc.outputs.vpc_name}-bastion-sg"
   }
 }
 
@@ -81,7 +72,7 @@ resource "aws_vpc_security_group_egress_rule" "bastion_https" {
 resource "aws_instance" "bastion" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.bastion_instance_type
-  subnet_id                   = data.aws_subnet.public.id
+  subnet_id                   = data.terraform_remote_state.vpc.outputs.public_subnet_id
   associate_public_ip_address = true
 
   vpc_security_group_ids = [
@@ -92,6 +83,6 @@ resource "aws_instance" "bastion" {
   user_data            = file("${path.module}/cloud-init.yaml")
 
   tags = {
-    Name = "${var.existing_vpc_name}-bastion"
+    Name = "${data.terraform_remote_state.vpc.outputs.vpc_name}-bastion"
   }
 }

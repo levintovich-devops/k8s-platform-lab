@@ -1,31 +1,10 @@
-data "aws_vpc" "lab" {
-  filter {
-    name   = "tag:Name"
-    values = [var.existing_vpc_name]
-  }
-}
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
 
-data "aws_subnet" "private_a" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.lab.id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["${var.existing_vpc_name}-private-a"]
-  }
-}
-
-data "aws_subnet" "private_b" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.lab.id]
-  }
-
-  filter {
-    name   = "tag:Name"
-    values = ["${var.existing_vpc_name}-private-b"]
+  config = {
+    bucket = var.vpc_state_bucket
+    key    = var.vpc_state_key
+    region = var.aws_region
   }
 }
 
@@ -35,15 +14,15 @@ module "eks" {
 
   name               = var.cluster_name
   kubernetes_version = var.kubernetes_version
-  vpc_id             = data.aws_vpc.lab.id
+  vpc_id             = data.terraform_remote_state.vpc.outputs.vpc_id
 
   subnet_ids = [
-    data.aws_subnet.private_a.id,
-    data.aws_subnet.private_b.id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
   ]
   control_plane_subnet_ids = [
-    data.aws_subnet.private_a.id,
-    data.aws_subnet.private_b.id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
   ]
 
   endpoint_private_access      = true
@@ -59,8 +38,8 @@ module "eks" {
     lab = {
       name           = "${var.cluster_name}-nodes"
       subnet_ids = [
-        data.aws_subnet.private_a.id,
-        data.aws_subnet.private_b.id,
+        data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
+        data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
       ]
       instance_types = [var.node_instance_type]
       capacity_type  = "ON_DEMAND"

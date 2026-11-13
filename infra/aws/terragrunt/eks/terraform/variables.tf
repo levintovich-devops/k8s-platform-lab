@@ -2,13 +2,16 @@
 variable "aws_region" {
   description = "AWS region containing the existing VPC and EKS cluster."
   type        = string
-  default     = "eu-north-1"
 }
 
-variable "existing_vpc_name" {
-  description = "Name tag of the existing VPC to reuse."
+variable "vpc_state_bucket" {
+  description = "S3 bucket containing the permanent VPC Terraform state."
   type        = string
-  default     = "aws-lab"
+}
+
+variable "vpc_state_key" {
+  description = "S3 key containing the permanent VPC Terraform state."
+  type        = string
 }
 
 variable "cluster_name" {

@@ -172,12 +172,27 @@ The AWS configuration and SSO token cache must remain outside Git.
 ## 8. AWS Infrastructure Lifecycle
 
 The Terraform configuration in `terraform/` exclusively owns the permanent
-VPC, subnets, route tables, and Internet Gateway. Do not include it in
+VPC, subnets, route tables, and Internet Gateway. It exports their identifiers
+as outputs consumed by the temporary modules. Do not include it in
 temporary-infrastructure destroy operations.
 
 Terragrunt in `terragrunt/` manages temporary Bastion, NAT, and EKS resources
-in separate states. From that directory, review and operate the complete
-temporary lifecycle with:
+in separate states. AWS region and shared S3 backend settings are centralized
+in `terraform/backend-config.json`. From `terraform/`, initialize the existing
+backend using that file and publish the VPC outputs after reviewing a plan
+with no managed-resource changes:
+
+```bash
+terraform init -reconfigure -backend-config=backend-config.json
+terraform plan
+# Run only if the plan contains no resource actions:
+terraform apply
+terraform output
+```
+
+Do not apply if the plan proposes any resource action. Once the VPC outputs are
+present in the existing state, from `terragrunt/` review and operate the
+complete temporary lifecycle with:
 
 ```bash
 terragrunt run --all plan

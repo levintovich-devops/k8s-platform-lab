@@ -3,11 +3,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "existing_vpc_name" {
-  description = "Name tag of the existing VPC and public subnet."
-  type        = string
-}
-
 variable "bastion_instance_type" {
   description = "EC2 instance type for the Bastion host."
   type        = string
@@ -25,5 +20,15 @@ variable "ubuntu_ami_name_pattern" {
 
 variable "ubuntu_ami_virtualization_type" {
   description = "Virtualization type for Ubuntu Server AMI."
+  type        = string
+}
+
+variable "vpc_state_bucket" {
+  description = "S3 bucket containing the permanent VPC Terraform state."
+  type        = string
+}
+
+variable "vpc_state_key" {
+  description = "S3 key containing the permanent VPC Terraform state."
   type        = string
 }

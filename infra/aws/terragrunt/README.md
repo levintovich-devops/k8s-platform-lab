@@ -6,9 +6,15 @@ This Terragrunt root contains only temporary components:
 - `nat`: NAT Gateway, Elastic IP, and private-subnet default route.
 - `eks`: private EKS cluster and managed node group.
 
-The permanent VPC remains owned by Terraform in `../terraform`. All three
-components discover and use its VPC/subnets by `Name` tags; none creates or
-manages the VPC, subnets, Internet Gateway, or route tables themselves.
+The permanent VPC remains owned by Terraform in `../terraform`. It publishes
+the VPC, subnet, Internet Gateway, and route-table identifiers as Terraform
+outputs. The temporary components read those outputs from the permanent VPC
+state; none creates or manages the VPC, subnets, Internet Gateway, or base
+route tables themselves.
+
+AWS region and S3 backend settings are centralized in
+`infra/aws/terraform/backend-config.json`. The base Terraform provider and this
+Terragrunt root read the same file.
 
 ## Dependency and state layout
 
@@ -24,6 +30,9 @@ Each component has a separate S3 state:
 | Bastion | `bastion/terraform.tfstate` |
 | NAT | `networking/nat/terraform.tfstate` |
 | EKS | `eks/terraform.tfstate` |
+
+The VPC's output values must be published to its existing state before
+planning any temporary component. See the one-time setup below.
 
 The all-components commands below run only the three directories in this
 Terragrunt root. The permanent Terraform directory is not a Terragrunt unit and
@@ -48,6 +57,29 @@ independently manageable. To operate Bastion by itself, run Terragrunt from
 The private EKS API is not reachable from the public internet. Confirm that
 your administration path and required private-subnet egress are working before
 creating the EKS node group.
+
+## One-time VPC backend and outputs setup
+
+The shared backend configuration preserves the existing permanent VPC backend
+bucket and key. From `infra/aws/terraform`, initialize it with the shared
+configuration:
+
+```bash
+terraform init -reconfigure -backend-config=backend-config.json
+terraform plan
+# Run only if the plan contains no resource actions.
+terraform apply
+terraform output
+```
+
+Confirm the plan proposes no managed-resource changes. The new outputs are
+state metadata and do not create or replace VPC resources. Only after reviewing
+the plan and confirming it has no resource actions, apply to record the outputs
+in the existing VPC state and verify them.
+
+Do not continue if the plan proposes any VPC resource changes. The temporary
+components require read access to the permanent VPC state key as well as
+read/write access to their own state keys.
 
 ## One-time Bastion state migration
 

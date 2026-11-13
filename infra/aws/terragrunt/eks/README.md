@@ -31,8 +31,8 @@ are placed in the selected private subnets.
 
 ## Existing infrastructure
 
-Terraform discovers the existing VPC and subnets using AWS
-data sources and Name tags.
+Terraform reads the VPC ID and private subnet IDs from outputs in the
+permanent VPC Terraform state.
 
 This deployment does not create or modify:
 
@@ -73,6 +73,8 @@ AWS Provider: 6.71.0
 Terragrunt: 0.99.4
 
 The existing S3 state bucket is reused.
+AWS region and shared S3 backend settings are read from
+`infra/aws/terraform/backend-config.json`.
 
 EKS state:
 s3://k8s-platform-lab-tfstate-eu-north-1/eks/terraform.tfstate
@@ -84,12 +86,12 @@ These are separate Terraform states.
 
 ## Configuration
 
-Deployment settings are supplied through terragrunt.hcl.
+Shared AWS region and state settings come from
+`infra/aws/terraform/backend-config.json`. EKS-specific deployment settings
+are supplied through `terragrunt.hcl`.
 
 Default values:
 
-- AWS_REGION=eu-north-1
-- EKS_EXISTING_VPC_NAME=aws-lab
 - EKS_CLUSTER_NAME=aws-lab-eks
 - EKS_KUBERNETES_VERSION=1.35
 - EKS_NODE_INSTANCE_TYPE=t3.small
@@ -98,6 +100,9 @@ Default values:
 - EKS_NODE_DESIRED_SIZE=2
 
 Environment variables may override these defaults.
+
+Before planning EKS, publish the VPC outputs to the existing VPC state using
+the one-time setup documented in `../README.md`.
 
 ## Validation
 

@@ -1,5 +1,11 @@
+include "common" {
+  path   = find_in_parent_folders("common.hcl")
+  expose = true
+}
+
 locals {
-  bastion_config = read_terragrunt_config("config.hcl").locals
+  shared_backend_config = include.common.locals.shared_backend_config
+  bastion_config        = read_terragrunt_config("config.hcl").locals
 }
 
 terraform {
@@ -9,12 +15,16 @@ terraform {
 remote_state {
   backend = "s3"
   config = {
-    bucket       = "k8s-platform-lab-tfstate-eu-north-1"
+    bucket       = local.shared_backend_config.bucket
     key          = "bastion/terraform.tfstate"
-    region       = local.bastion_config.aws_region
-    encrypt      = true
-    use_lockfile = true
+    region       = local.shared_backend_config.region
+    encrypt      = include.common.locals.temporary_state_encryption
+    use_lockfile = local.shared_backend_config.use_lockfile
   }
 }
 
-inputs = local.bastion_config
+inputs = merge(local.bastion_config, {
+  aws_region       = local.shared_backend_config.region
+  vpc_state_bucket = local.shared_backend_config.bucket
+  vpc_state_key    = local.shared_backend_config.key
+})

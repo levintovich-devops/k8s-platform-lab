@@ -35,22 +35,22 @@ output "cluster_security_group_id" {
 
 output "vpc_id" {
   description = "ID of the reused VPC."
-  value       = data.aws_vpc.lab.id
+  value       = data.terraform_remote_state.vpc.outputs.vpc_id
 }
 
 output "control_plane_subnet_ids" {
   description = "IDs of the reused private subnets hosting EKS control-plane interfaces."
   value = [
-    data.aws_subnet.private_a.id,
-    data.aws_subnet.private_b.id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
   ]
 }
 
 output "node_subnet_ids" {
   description = "IDs of the existing private subnets where managed worker nodes run."
   value = [
-    data.aws_subnet.private_a.id,
-    data.aws_subnet.private_b.id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_a_id,
+    data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
   ]
 }
 
