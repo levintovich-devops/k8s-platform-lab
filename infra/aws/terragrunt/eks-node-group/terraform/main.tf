@@ -14,14 +14,14 @@ data "aws_eks_cluster" "this" {
 
 module "eks_managed_node_group" {
   source  = "terraform-aws-modules/eks/aws//modules/eks-managed-node-group"
-  version = "21.29.0"
+  version = "20.37.2"
 
-  name                               = "${var.cluster_name}-nodes"
-  cluster_name                       = data.terraform_remote_state.eks.outputs.cluster_name
-  kubernetes_version                 = data.terraform_remote_state.eks.outputs.cluster_version
-  cluster_endpoint                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
-  cluster_auth_base64                = data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data
-  cluster_service_cidr               = data.aws_eks_cluster.this.kubernetes_network_config[0].service_ipv4_cidr
+  name                              = "${var.cluster_name}-nodes"
+  cluster_name                      = data.terraform_remote_state.eks.outputs.cluster_name
+  cluster_version                   = data.terraform_remote_state.eks.outputs.cluster_version
+  cluster_endpoint                  = data.terraform_remote_state.eks.outputs.cluster_endpoint
+  cluster_auth_base64               = data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data
+  cluster_service_cidr              = data.aws_eks_cluster.this.kubernetes_network_config[0].service_ipv4_cidr
   cluster_primary_security_group_id = data.terraform_remote_state.eks.outputs.cluster_security_group_id
 
   subnet_ids = data.terraform_remote_state.eks.outputs.node_subnet_ids

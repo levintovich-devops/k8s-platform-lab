@@ -10,10 +10,10 @@ data "terraform_remote_state" "vpc" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "21.29.0"
+  version = "20.37.2"
 
-  name               = var.cluster_name
-  kubernetes_version = var.kubernetes_version
+  cluster_name       = var.cluster_name
+  cluster_version    = var.kubernetes_version
   vpc_id             = data.terraform_remote_state.vpc.outputs.vpc_id
 
   subnet_ids = [
@@ -25,22 +25,17 @@ module "eks" {
     data.terraform_remote_state.vpc.outputs.private_subnet_b_id,
   ]
 
-  endpoint_private_access      = true
-  endpoint_public_access       = false
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access  = false
 
   enable_cluster_creator_admin_permissions = true
-  authentication_mode = "API_AND_CONFIG_MAP"
+  authentication_mode                    = "API_AND_CONFIG_MAP"
+  bootstrap_self_managed_addons           = true
 
-  addons = {
-    vpc-cni = {
-      before_compute = true
-    }
-  }
-
-  create_kms_key                           = false
-  encryption_config                        = null
-  create_cloudwatch_log_group              = false
-  enabled_log_types                        = []
+  create_kms_key             = false
+  cluster_encryption_config  = {}
+  create_cloudwatch_log_group = false
+  cluster_enabled_log_types  = []
 
   tags = {
     Environment = "lab"

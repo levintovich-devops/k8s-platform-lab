@@ -16,7 +16,7 @@ their Terraform configuration or state.
 - EKS cluster: aws-lab-eks
 - Kubernetes version: 1.35
 - EKS API endpoint: private only
-- EKS VPC CNI add-on: enabled before compute
+- Standard EKS add-ons: bootstrapped by AWS
 - Public subnet: existing Bastion component and NAT Gateway
 
 Both private subnets are supplied to the EKS control plane and
@@ -69,7 +69,7 @@ Do not deploy until the NAT route and required connectivity are confirmed.
 ## Terraform and Terragrunt
 
 Terraform: 1.13.5
-AWS Provider: 6.71.0
+AWS Provider: >= 5.95, < 6.0.0
 Terragrunt: 0.99.4
 
 The existing S3 state bucket is reused.
@@ -89,7 +89,9 @@ These are separate Terraform states.
 Shared AWS region and state settings come from
 `infra/aws/terraform/backend-config.json`. EKS-specific control-plane
 deployment settings are supplied through `terragrunt.hcl`. Node-group settings
-are supplied through `../eks-node-group/terragrunt.hcl`.
+are supplied through `../eks-node-group/terragrunt.hcl`. Both EKS module units
+use `terraform-aws-modules/eks/aws` v20.37.2 and the AWS Provider 5.x line
+required by that release.
 
 Default values:
 
