@@ -18,18 +18,18 @@ output "internet_gateway_id" {
   value       = aws_internet_gateway.lab.id
 }
 
-output "public_subnet_id" {
-  description = "ID of the public subnet."
-  value       = aws_subnet.public.id
+output "public_subnet_a_id" {
+  description = "ID of the public subnet in the first Availability Zone."
+  value       = aws_subnet.public_a.id
 }
 
-output "public_subnet_cidr" {
-  description = "IPv4 CIDR block of the public subnet."
+output "public_subnet_a_cidr" {
+  description = "IPv4 CIDR block of the first public subnet."
   value       = aws_subnet.public.cidr_block
 }
 
-output "public_subnet_availability_zone" {
-  description = "Availability Zone of the public subnet."
+output "public_subnet_a_availability_zone" {
+  description = "Availability Zone of the first public subnet."
   value       = aws_subnet.public.availability_zone
 }
 
@@ -91,4 +91,20 @@ output "private_route_table_a_id" {
 output "private_route_table_b_id" {
   description = "Route table ID associated with the second private subnet."
   value       = aws_route_table_association.private_b.route_table_id
+}
+
+# Compatibility outputs for existing Terragrunt consumers.
+output "public_subnet_id" {
+  description = "Legacy alias for public_subnet_a_id."
+  value       = aws_subnet.public_a.id
+}
+
+output "public_subnet_cidr" {
+  description = "Legacy alias for public_subnet_a_cidr."
+  value       = aws_subnet.public_a.cidr_block
+}
+
+output "public_subnet_availability_zone" {
+  description = "Legacy alias for public_subnet_a_availability_zone."
+  value       = aws_subnet.public_a.availability_zone
 }
