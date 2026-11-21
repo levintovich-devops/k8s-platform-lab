@@ -33,6 +33,21 @@ output "public_subnet_availability_zone" {
   value       = aws_subnet.public.availability_zone
 }
 
+output "public_subnet_b_id" {
+  description = "ID of the public subnet in the second Availability Zone."
+  value       = aws_subnet.public_b.id
+}
+
+output "public_subnet_b_cidr" {
+  description = "CIDR block of the public subnet in the second Availability Zone."
+  value       = aws_subnet.public_b.cidr_block
+}
+
+output "public_subnet_b_availability_zone" {
+  description = "Availability Zone of the second public subnet."
+  value       = aws_subnet.public_b.availability_zone
+}
+
 output "private_subnet_a_id" {
   description = "ID of the first private subnet."
   value       = aws_subnet.private_a.id
