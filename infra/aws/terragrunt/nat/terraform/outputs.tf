@@ -1,27 +1,26 @@
-output "nat_gateway_id" {
-  description = "ID of the NAT Gateway created in the existing public subnet."
-  value       = aws_nat_gateway.lab.id
+output "nat_gateway_ids" {
+  description = "NAT Gateway IDs by Availability Zone suffix."
+  value       = { for az, nat in aws_nat_gateway.nat : az => nat.id }
 }
 
-output "nat_gateway_public_ip" {
-  description = "Elastic IP address allocated to the NAT Gateway."
-  value       = aws_eip.nat.public_ip
+output "nat_gateway_public_ips" {
+  description = "NAT Gateway Elastic IP addresses by Availability Zone suffix."
+  value       = { for az, eip in aws_eip.nat : az => eip.public_ip }
 }
 
-output "public_subnet_id" {
-  description = "Existing public subnet hosting the NAT Gateway."
-  value       = data.terraform_remote_state.vpc.outputs.public_subnet_id
+output "public_subnet_ids" {
+  description = "Public subnet IDs hosting NAT Gateways, keyed by Availability Zone suffix."
+  value       = { for az, config in local.azs : az => config.public_subnet_id }
 }
 
-output "private_route_table_id" {
-  description = "Existing shared private route table receiving the NAT default route."
-  value       = data.terraform_remote_state.vpc.outputs.private_route_table_a_id
-}
-
-output "private_default_route" {
-  description = "The destination and NAT Gateway target of the route managed by this component."
+output "private_default_routes" {
+  description = "Private default routes by Availability Zone suffix."
   value = {
-    destination_cidr_block = aws_route.private_default_ipv4.destination_cidr_block
-    nat_gateway_id         = aws_route.private_default_ipv4.nat_gateway_id
+    for az, route in aws_route.private_default_ipv4 :
+    az => {
+      route_table_id         = route.route_table_id
+      destination_cidr_block = route.destination_cidr_block
+      nat_gateway_id         = route.nat_gateway_id
+    }
   }
 }
