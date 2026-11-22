@@ -46,9 +46,15 @@ The `.local/` directory is Git-ignored. Do not commit credentials. Kubernetes Se
 
 ## PostgreSQL: local cluster versus EKS
 
-**The existing `postgres.yaml` is local-cluster-only.** It selects a node with hostname `worker` and uses a static `hostPath` volume. EKS worker nodes have different hostnames, and node-local `hostPath` is not suitable for durable EKS storage.
+The local cluster uses `postgres.yaml` with a node-local `hostPath` volume and the `worker` node selector. **For EKS use `postgres-eks.yaml` instead.** It creates an encrypted gp3 EBS StorageClass, a 2 GiB PVC, and the PostgreSQL Deployment and Service without the local node selector.
 
-For EKS, first replace the local-only node selector and volume with EKS-compatible storage, such as an EBS CSI-backed PersistentVolumeClaim and StorageClass. Do not apply the existing PostgreSQL manifest unchanged on EKS.
+**Prerequisite:** Install the Amazon EBS CSI driver (`aws-ebs-csi-driver` EKS add-on) and grant its controller the required IAM permissions (for example via EKS Pod Identity or IRSA with `AmazonEBSCSIDriverPolicy`). Verify it is running before applying the manifest:
+
+```bash
+kubectl -n kube-system get deployment ebs-csi-controller
+```
+
+EBS volumes incur AWS charges while provisioned. The EKS StorageClass uses `reclaimPolicy: Delete`, so deleting its PVC normally deletes the associated EBS volume and its data. EBS is single-AZ block storage, not cross-AZ PostgreSQL replication or automatic database failover. Keep the PVC when deleting only the Deployment.
 
 ## Deploy
 
@@ -60,7 +66,15 @@ kubectl apply -f kubernetes/shopping-list/backend.yaml
 kubectl apply -f kubernetes/shopping-list/frontend.yaml
 ```
 
-On EKS, deploy PostgreSQL using the EKS-compatible manifest first, then apply `backend.yaml` and `frontend.yaml` above.
+On EKS, use the dedicated manifest (not `postgres.yaml`):
+
+```bash
+kubectl apply -f kubernetes/shopping-list/postgres-eks.yaml
+kubectl apply -f kubernetes/shopping-list/backend.yaml
+kubectl apply -f kubernetes/shopping-list/frontend.yaml
+```
+
+Do not apply both PostgreSQL manifests to the same cluster: they define the same Deployment, Service, and PVC names. The EKS PVC is dynamically provisioned by the EBS CSI driver.
 
 Check rollout and resources:
 
@@ -110,12 +124,21 @@ kubectl -n network-lab exec deployment/postgres -- sh -c \
 
 The local PostgreSQL PersistentVolume uses a 2 GiB `hostPath` at `/var/lib/k8s-platform-lab/shopping-list/postgres` with reclaim policy `Retain`. It is node-local, not replicated or backed up.
 
-To remove workloads without intentionally removing retained data:
+For the local cluster, remove workloads without intentionally removing retained data:
 
 ```bash
 kubectl delete -f kubernetes/shopping-list/frontend.yaml
 kubectl delete -f kubernetes/shopping-list/backend.yaml
 kubectl delete -f kubernetes/shopping-list/postgres.yaml
 ```
+
+On EKS, delete the application Deployments and Service without deleting the database PVC:
+
+```bash
+kubectl -n network-lab delete deployment/frontend deployment/backend deployment/postgres
+kubectl -n network-lab delete service/frontend service/backend service/postgres
+```
+
+To **permanently delete the EKS database data and release the EBS volume**, delete `pvc/postgres-data` separately after ensuring you no longer need its contents. The StorageClass uses `Delete` reclaim policy; verify volume deletion in AWS to avoid ongoing charges.
 
 Leave the `network-lab` namespace if other workloads use it. Remove the local credentials file when no longer needed.
