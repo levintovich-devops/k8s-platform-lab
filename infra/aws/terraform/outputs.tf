@@ -25,12 +25,12 @@ output "public_subnet_a_id" {
 
 output "public_subnet_a_cidr" {
   description = "IPv4 CIDR block of the first public subnet."
-  value       = aws_subnet.public.cidr_block
+  value       = aws_subnet.public_a.cidr_block
 }
 
 output "public_subnet_a_availability_zone" {
   description = "Availability Zone of the first public subnet."
-  value       = aws_subnet.public.availability_zone
+  value       = aws_subnet.public_a.availability_zone
 }
 
 output "public_subnet_b_id" {
