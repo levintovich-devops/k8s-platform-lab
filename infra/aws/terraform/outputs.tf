@@ -18,18 +18,18 @@ output "internet_gateway_id" {
   value       = aws_internet_gateway.lab.id
 }
 
-output "public_subnet_id" {
-  description = "ID of the public subnet."
-  value       = aws_subnet.public.id
+output "public_subnet_a_id" {
+  description = "ID of the public subnet in the first Availability Zone."
+  value       = aws_subnet.public_a.id
 }
 
-output "public_subnet_cidr" {
-  description = "IPv4 CIDR block of the public subnet."
+output "public_subnet_a_cidr" {
+  description = "IPv4 CIDR block of the first public subnet."
   value       = aws_subnet.public.cidr_block
 }
 
-output "public_subnet_availability_zone" {
-  description = "Availability Zone of the public subnet."
+output "public_subnet_a_availability_zone" {
+  description = "Availability Zone of the first public subnet."
   value       = aws_subnet.public.availability_zone
 }
 

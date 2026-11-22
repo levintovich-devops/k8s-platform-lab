@@ -21,7 +21,7 @@ data "aws_route_table" "public" {
 
   filter {
     name   = "association.subnet-id"
-    values = [data.terraform_remote_state.vpc.outputs.public_subnet_id]
+    values = [data.terraform_remote_state.vpc.outputs.public_subnet_a_id]
   }
 }
 
@@ -78,7 +78,7 @@ resource "aws_eip" "nat" {
 
 resource "aws_nat_gateway" "lab" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = data.terraform_remote_state.vpc.outputs.public_subnet_id
+  subnet_id     = data.terraform_remote_state.vpc.outputs.public_subnet_a_id
 
   tags = {
     Name      = "${data.terraform_remote_state.vpc.outputs.vpc_name}-nat"
