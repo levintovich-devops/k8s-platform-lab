@@ -15,7 +15,7 @@ output "private_ip" {
 
 output "subnet_id" {
   description = "ID of the existing public subnet hosting the Bastion."
-  value       = data.terraform_remote_state.vpc.outputs.public_subnet_id
+  value       = data.terraform_remote_state.vpc.outputs.public_subnet_a_id
 }
 
 output "security_group_id" {
