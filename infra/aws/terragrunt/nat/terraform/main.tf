@@ -8,80 +8,46 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
-data "aws_route_table" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [data.terraform_remote_state.vpc.outputs.vpc_id]
-  }
-
-  filter {
-    name   = "route-table-id"
-    values = [data.terraform_remote_state.vpc.outputs.public_route_table_id]
-  }
-
-  filter {
-    name   = "association.subnet-id"
-    values = [data.terraform_remote_state.vpc.outputs.public_subnet_a_id]
-  }
-}
-
-data "aws_route_table" "private_a" {
-  filter {
-    name   = "vpc-id"
-    values = [data.terraform_remote_state.vpc.outputs.vpc_id]
-  }
-
-  filter {
-    name   = "route-table-id"
-    values = [data.terraform_remote_state.vpc.outputs.private_route_table_a_id]
-  }
-
-  filter {
-    name   = "association.subnet-id"
-    values = [data.terraform_remote_state.vpc.outputs.private_subnet_a_id]
-  }
-}
-
-data "aws_route_table" "private_b" {
-  filter {
-    name   = "vpc-id"
-    values = [data.terraform_remote_state.vpc.outputs.vpc_id]
-  }
-
-  filter {
-    name   = "route-table-id"
-    values = [data.terraform_remote_state.vpc.outputs.private_route_table_b_id]
-  }
-
-  filter {
-    name   = "association.subnet-id"
-    values = [data.terraform_remote_state.vpc.outputs.private_subnet_b_id]
-  }
-}
-
 locals {
-  conflicting_private_default_routes = [
-    for route in data.aws_route_table.private_a.routes : route
-    if route.cidr_block == "0.0.0.0/0" &&
-    try(route.nat_gateway_id, null) != aws_nat_gateway.lab.id
-  ]
+  vpc = data.terraform_remote_state.vpc.outputs
+  azs = {
+    a = {
+      public_subnet_id      = local.vpc.public_subnet_a_id
+      private_route_table_id = local.vpc.private_route_table_a_id
+    }
+    b = {
+      public_subnet_id      = local.vpc.public_subnet_b_id
+      private_route_table_id = local.vpc.private_route_table_b_id
+    }
+  }
+}
+
+data "aws_route_table" "public" {
+  route_table_id = local.vpc.public_route_table_id
+}
+
+data "aws_route_table" "private" {
+  for_each       = local.azs
+  route_table_id = each.value.private_route_table_id
 }
 
 resource "aws_eip" "nat" {
-  domain = "vpc"
+  for_each = local.azs
+  domain   = "vpc"
 
   tags = {
-    Name      = "${data.terraform_remote_state.vpc.outputs.vpc_name}-nat-eip"
+    Name      = "${local.vpc.vpc_name}-nat-${each.key}-eip"
     ManagedBy = "Terraform"
   }
 }
 
-resource "aws_nat_gateway" "lab" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = data.terraform_remote_state.vpc.outputs.public_subnet_a_id
+resource "aws_nat_gateway" "nat" {
+  for_each      = local.azs
+  allocation_id = aws_eip.nat[each.key].id
+  subnet_id     = each.value.public_subnet_id
 
   tags = {
-    Name      = "${data.terraform_remote_state.vpc.outputs.vpc_name}-nat"
+    Name      = "${local.vpc.vpc_name}-nat-${each.key}"
     ManagedBy = "Terraform"
   }
 
@@ -90,31 +56,26 @@ resource "aws_nat_gateway" "lab" {
       condition = anytrue([
         for route in data.aws_route_table.public.routes :
         route.cidr_block == "0.0.0.0/0" &&
-        try(route.gateway_id, null) == data.terraform_remote_state.vpc.outputs.internet_gateway_id
+        try(route.gateway_id, null) == local.vpc.internet_gateway_id
       ])
-      error_message = "The existing public subnet route table must have a 0.0.0.0/0 route to an Internet Gateway."
+      error_message = "The public route table must have a default IPv4 route to the VPC Internet Gateway."
     }
   }
 }
 
 resource "aws_route" "private_default_ipv4" {
-  route_table_id         = data.terraform_remote_state.vpc.outputs.private_route_table_a_id
+  for_each               = local.azs
+  route_table_id         = each.value.private_route_table_id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.lab.id
+  nat_gateway_id         = aws_nat_gateway.nat[each.key].id
 
   lifecycle {
     precondition {
-      condition = (
-        data.aws_route_table.private_a.id == data.aws_route_table.private_b.id &&
-        data.aws_route_table.private_a.id == data.terraform_remote_state.vpc.outputs.private_route_table_a_id &&
-        data.aws_route_table.private_b.id == data.terraform_remote_state.vpc.outputs.private_route_table_b_id
-      )
-      error_message = "The existing private-a and private-b subnets must share one route table for this component."
-    }
-
-    precondition {
-      condition     = length(local.conflicting_private_default_routes) == 0
-      error_message = "The existing private route table has an IPv4 default route that does not target this component's NAT Gateway. Refusing to replace or take ownership of it."
+      condition = alltrue([
+        for route in data.aws_route_table.private[each.key].routes :
+        route.cidr_block != "0.0.0.0/0"
+      ])
+      error_message = "The private route table already has a default IPv4 route. Remove the existing route before deploying this module."
     }
   }
 }
