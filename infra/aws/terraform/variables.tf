@@ -17,8 +17,8 @@ variable "vpc_cidr" {
 }
 
 
-variable "public_subnet_cidr" {
-  description = "CIDR block for the public subnet."
+variable "public_subnet_a_cidr" {
+  description = "CIDR block for the public subnet in the first Availability Zone."
   type        = string
   default     = "10.20.1.0/24"
 }
@@ -42,13 +42,13 @@ variable "private_subnet_b_cidr" {
 }
 
 variable "availability_zone_a" {
-  description = "Availability Zone for the public and first private subnet."
+  description = "Availability Zone for the first public and private subnets."
   type        = string
   default     = "eu-north-1a"
 }
 
 variable "availability_zone_b" {
-  description = "Availability Zone for the second private subnet."
+  description = "Availability Zone for the second public and private subnets."
   type        = string
   default     = "eu-north-1b"
 }
