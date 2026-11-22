@@ -72,7 +72,7 @@ resource "aws_vpc_security_group_egress_rule" "bastion_https" {
 resource "aws_instance" "bastion" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.bastion_instance_type
-  subnet_id                   = data.terraform_remote_state.vpc.outputs.public_subnet_id
+  subnet_id                   = data.terraform_remote_state.vpc.outputs.public_subnet_a_id
   associate_public_ip_address = true
 
   vpc_security_group_ids = [
