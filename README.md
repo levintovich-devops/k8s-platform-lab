@@ -22,3 +22,7 @@ The local lab defaults to **2 vCPUs per VM** and **5,120 MB of guest RAM total**
 **Local lab.** Two Ubuntu VMs make it possible to inspect traffic between Kubernetes nodes from a Windows workstation. Vagrant makes the setup repeatable, at the cost of additional RAM and disk space.
 
 **AWS lab.** The planned EKS environment uses a public bastion for administrative access and private worker subnets. A single managed worker and short test sessions keep the lab within a personal budget. This is enough to validate private access and deploy the application. Workload failover requires a separate multi-worker test.
+
+## AWS EKS validation
+
+- [Verified AWS EKS application and EBS persistence runbook](docs/aws-eks-validation.md) — repeatable commands for Service routing, Nginx reverse proxy, PostgreSQL SQL checks, EBS CSI storage, Pod recreation, recovery, and cleanup. Verified on 2026-11-26. External Ingress was not tested.
