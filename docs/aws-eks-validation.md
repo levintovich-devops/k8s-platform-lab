@@ -190,25 +190,29 @@ Do not describe any of these as completed.
 
 ## 9. Cleanup before Terragrunt destroy
 
-**Warning:** the EKS StorageClass uses `reclaimPolicy: Delete`. Deleting the PVC normally causes the associated AWS EBS volume and its data to be deleted. Preserve data or take a backup first if needed. For this disposable lab, remove the diagnostic Pod and application resources before destroying the cluster.
+**Verified issue (2026-11-26):** Deleting `pvc/postgres-data` while the PostgreSQL Deployment was still running printed `deleted`, but the PVC stayed in `Terminating`. The running PostgreSQL Pod still used the claim, and PVC protection prevented final deletion. Deleting `deployment/postgres` released the claim; the PVC, PV, and AWS EBS Volume were then deleted.
+
+**Correct order for this disposable EKS lab:**
 
 ```bash
-kubectl -n network-lab delete pod curl-test --ignore-not-found
+kubectl -n network-lab delete deployment postgres
 ```
 
 ```bash
-kubectl -n network-lab delete -f kubernetes/shopping-list/frontend.yaml
+kubectl -n network-lab delete pvc postgres-data
 ```
 
 ```bash
-kubectl -n network-lab delete -f kubernetes/shopping-list/backend.yaml
+kubectl -n network-lab get pvc postgres-data
 ```
 
-```bash
-kubectl -n network-lab delete -f kubernetes/shopping-list/postgres-eks.yaml
-```
+Expected: `NotFound`. Verify in AWS EC2 → Volumes that the EBS Volume ID recorded in Section 6 no longer exists. **Do not remove EBS CSI before EBS volume cleanup completes.**
 
-**Caution:** the last manifest also contains the StorageClass, PVC, PostgreSQL Deployment, and Service. Ensure the PVC is deleted and the EBS volume has actually been removed before destroying the EKS/VPC infrastructure. Confirm any LoadBalancer Services and other billable resources are cleaned up. Destroy Terraform/Terragrunt-managed infrastructure only from the correct live configuration and in dependency-safe order. This runbook does not prescribe a `terragrunt destroy` command without inspecting the current stack.
+Next delete the two manually installed EKS Add-ons in dependency order: **`aws-ebs-csi-driver` first, then `eks-pod-identity-agent`**. Wait for each deletion to finish. Then perform Terragrunt destroy from the correct infrastructure directory and verify no billable AWS resources remain.
+
+Other application Pods and Deployments do not need individual deletion when destroying the entire EKS cluster. PostgreSQL Deployment is the exception: it must release the PVC first.
+
+**Data loss warning:** The gp3 StorageClass has `reclaimPolicy: Delete`. Removing the PVC permanently deletes the database data. This procedure is for a disposable lab.
 
 ## 10. Future automation
 
